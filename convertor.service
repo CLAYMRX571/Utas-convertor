@@ -5,7 +5,7 @@ Description=convertorbot
 User=root
 WorkingDirectory=/home/projects/convertorbot
 ExecStart=/bin/bash -c 'cd /home/projects/convertorbot && python3 main.py'
-# optional items below
+optional items below
 Restart=always
 RestartSec=3
 
