@@ -11,7 +11,8 @@ menu = ReplyKeyboardMarkup(
             KeyboardButton(text="Tarjima 🇺🇿")
         ],
     ],
-    resize_keyboard=True
+    resize_keyboard=True,
+    input_field_placeholder="Tugmalardan birini tanlang 👇"
 )
 
 confirm = ReplyKeyboardMarkup(
