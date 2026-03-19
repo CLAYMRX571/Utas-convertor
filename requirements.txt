@@ -9,3 +9,4 @@ deep-translator==1.11.4
 pdf2docx==0.5.8
 pymupdf==1.25.5
 fire==0.7.0
+Flask==3.0.2
