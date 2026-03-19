@@ -1,32 +1,13 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-menu = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton(text="Pdf 📁"),
-            KeyboardButton(text="Word 📁")
-        ],
-        [
-            KeyboardButton(text="Rasm 📸"),
-            KeyboardButton(text="Tarjima 🇺🇿")
-        ],
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Tugmalardan birini tanlang 👇"
-)
+menu = ReplyKeyboardMarkup(resize_keyboard=True)
+menu.row(KeyboardButton("Pdf 📁"), KeyboardButton("Word 📁"))
+menu.row(KeyboardButton("Rasm 📸"), KeyboardButton("Tarjima 🇺🇿"))
 
-confirm = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="Ha ✅"), KeyboardButton(text="Yo'q ❌")]
-    ],
-    resize_keyboard=True
-)
+confirm = ReplyKeyboardMarkup(resize_keyboard=True)
+confirm.row(KeyboardButton("Ha ✅"), KeyboardButton("Yo'q ❌"))
 
-translate = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="en 🏴"), KeyboardButton(text="ru 🇷🇺")],
-        [KeyboardButton(text="uz 🇺🇿"), KeyboardButton(text="tr 🇹🇷")],
-        [KeyboardButton(text="Orqaga 🔙")]
-    ],
-    resize_keyboard=True
-)
+translate = ReplyKeyboardMarkup(resize_keyboard=True)
+translate.row(KeyboardButton("en 🏴"), KeyboardButton("ru 🇷🇺"))
+translate.row(KeyboardButton("uz 🇺🇿"), KeyboardButton("tr 🇹🇷"))
+translate.row(KeyboardButton("Orqaga 🔙"))

@@ -1,18 +1,23 @@
 import os
-import asyncio
-from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from func import router
+from telebot import TeleBot, custom_filters
+from telebot.storage import StateMemoryStorage
+
+from func import register_handlers
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 
-async def start():
-    bot = Bot(token=TOKEN)
-    dp = Dispatcher(storage=MemoryStorage())
-    dp.include_router(router)
-    await dp.start_polling(bot)
+if not TOKEN:
+    raise ValueError("BOT_TOKEN .env faylda topilmadi!")
+
+state_storage = StateMemoryStorage()
+bot = TeleBot(TOKEN, state_storage=state_storage)
+
+bot.add_custom_filter(custom_filters.StateFilter(bot))
+
+register_handlers(bot)
 
 if __name__ == "__main__":
-    asyncio.run(start())
+    print("Bot ishga tushdi...")
+    bot.infinity_polling(skip_pending=True)
