@@ -1,18 +1,27 @@
 import os
+from pathlib import Path
 import telebot
 from flask import Flask, request
 from dotenv import load_dotenv
 from bot import bot
 from func import register_handlers
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+ENV_FILE = BASE_DIR / ".env"
 
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://yourdomain.uz").rstrip("/")
+load_dotenv(dotenv_path=ENV_FILE)
+
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "").strip()
 WEBHOOK_PATH = "/bot"
+
+if not WEBHOOK_HOST:
+    raise RuntimeError(f"WEBHOOK_HOST topilmadi yoki bo'sh. .env faylni tekshiring: {ENV_FILE}")
+
+WEBHOOK_HOST = WEBHOOK_HOST.rstrip("/")
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 app = Flask(__name__)
-application = app 
+application = app
 
 register_handlers(bot)
 
@@ -48,4 +57,4 @@ def delete_webhook():
         return f"Delete webhook xatolik: {str(e)}", 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)

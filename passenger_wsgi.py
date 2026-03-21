@@ -1,5 +1,6 @@
 import sys, os
 
-sys.path.insert(0, os.path.dirname(__file__))
+BASE_DIR = os.path.dirname(__file__)
+sys.path.insert(0, BASE_DIR)
 
 from webhook import application
