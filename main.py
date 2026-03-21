@@ -9,7 +9,7 @@ from func import register_handlers
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "https://bot.sample.uz").rstrip("/")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "claymrx.uz").rstrip("/")
 WEBHOOK_PATH = "/bot"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
