@@ -2,3 +2,9 @@ pyTelegramBotAPI
 Flask
 python-dotenv
 opencv-python-headless
+easyocr
+pdfplumber
+aspose-words
+python-docx
+deep-translator
+pdf2docx
