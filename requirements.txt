@@ -1,4 +1,4 @@
-pyTelegramBotAPI==4.32.0
+pyTelegramBotAPI==4.29.1
 Flask==3.1.2
 python-dotenv==1.1.1
 pdfplumber==0.11.7
