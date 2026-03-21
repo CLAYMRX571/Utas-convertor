@@ -3,32 +3,24 @@ import telebot
 from dotenv import load_dotenv
 from telebot import custom_filters
 from telebot.storage import StateMemoryStorage
-from flask import Flask, request
-
 from func import register_handlers
+from flask import Flask, request
 
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "").rstrip("/")
 WEBHOOK_PATH = "/bot"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN .env faylda topilmadi!")
-
-if not WEBHOOK_HOST:
-    raise ValueError("WEBHOOK_HOST .env faylda topilmadi!")
 
 state_storage = StateMemoryStorage()
 bot = telebot.TeleBot(TOKEN, state_storage=state_storage, threaded=True)
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
-
 register_handlers(bot)
 
 app = Flask(__name__)
-application = app 
+application = app
 
 @app.route("/", methods=["GET"])
 def index():
@@ -36,15 +28,30 @@ def index():
 
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def get_message():
-    if request.headers.get("content-type") == "application/json":
-        json_str = request.stream.read().decode("utf-8")
+    try:
+        json_str = request.get_data().decode("utf-8")
         update = telebot.types.Update.de_json(json_str)
         bot.process_new_updates([update])
         return "OK", 200
-    return "Forbidden", 403
+    except Exception as e:
+        return f"Xatolik: {e}", 500
 
 @app.route("/set_webhook", methods=["GET"])
 def set_webhook():
-    bot.remove_webhook()
-    bot.set_webhook(url=WEBHOOK_URL)
-    return f"Webhook installed: {WEBHOOK_URL}", 200
+    try:
+        bot.remove_webhook()
+        bot.set_webhook(url=WEBHOOK_URL)
+        return f"Webhook installed: {WEBHOOK_URL}", 200
+    except Exception as e:
+        return f"Webhook xatolik: {e}", 500
+
+@app.route("/delete_webhook", methods=["GET"])
+def delete_webhook():
+    try:
+        bot.remove_webhook()
+        return "Webhook deleted", 200
+    except Exception as e:
+        return f"Delete webhook xatolik: {e}", 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

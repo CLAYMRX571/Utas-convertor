@@ -3,6 +3,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
 menu.row(KeyboardButton("Pdf 📁"), KeyboardButton("Word 📁"))
 menu.row(KeyboardButton("Rasm 📸"), KeyboardButton("Tarjima 🇺🇿"))
+menu.row(KeyboardButton("Text ✉️"), KeyboardButton("Adminga murojaat 👨‍💻"))
 
 confirm = ReplyKeyboardMarkup(resize_keyboard=True)
 confirm.row(KeyboardButton("Ha ✅"), KeyboardButton("Yo'q ❌"))

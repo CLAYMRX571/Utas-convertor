@@ -11,6 +11,7 @@ import aspose.words as aw
 from docx import Document
 from deep_translator import GoogleTranslator
 from keys import menu, confirm, translate
+from telebot.types import Message
 from states import ConvertState
 
 BASE_DIR = "media"
@@ -23,6 +24,8 @@ for folder in [PDF_DIR, WORD_DIR, OUT_DIR, IMG_DIR]:
     os.makedirs(folder, exist_ok=True)
 
 _READER = None
+
+TEXT_STATE = "text_input_state"
 
 def get_ocr():
     global _READER
@@ -492,3 +495,54 @@ def register_handlers(bot):
     def back_translate(message):
         clear_user_state(bot, message)
         bot.send_message(message.chat.id, "Orqaga qaytdi 🔙", reply_markup=menu)
+
+    @bot.message_handler(func=lambda message: message.text == "Text ✉️")
+    def ask_text(message: Message):
+        bot.set_state(message.from_user.id, TEXT_STATE, message.chat.id)
+        bot.send_message(
+            message.chat.id,
+            "Matn yuboring. Men uni Word faylga aylantirib sizga yuboraman."
+        )
+
+    @bot.message_handler(state=TEXT_STATE, content_types=['text'])
+    def text_to_word(message: Message):
+        user_id = message.from_user.id
+        chat_id = message.chat.id
+        text = message.text.strip()
+
+        if not text:
+            bot.send_message(chat_id, "Matn bo'sh bo'lmasligi kerak. Qayta yuboring.")
+            return
+
+        os.makedirs("media", exist_ok=True)
+
+        file_name = f"text_{uuid.uuid4().hex[:8]}.docx"
+        file_path = os.path.join("media", file_name)
+
+        doc = Document()
+        doc.add_heading("Foydalanuvchi matni", level=1)
+        doc.add_paragraph(text)
+        doc.save(file_path)
+
+        with open(file_path, "rb") as f:
+            bot.send_document(chat_id, f, caption="Word faylingiz tayyor.")
+
+        bot.delete_state(user_id, chat_id)
+
+        try:
+            os.remove(file_path)
+        except:
+            pass
+
+    @bot.message_handler(func=lambda message: message.text == "Adminga murojaat 👨‍💻")
+    def admin_contact(message: Message):
+        username = "musulmon_0319" 
+        phone = "+998712000540"
+
+        text = (
+            "👨‍💻 Admin bilan bog'lanish:\n\n"
+            f"📩 Lichka: @{username}\n"
+            f"📞 Telefon: {phone}"
+        )
+
+        bot.send_message(message.chat.id, text, parse_mode="HTML")
