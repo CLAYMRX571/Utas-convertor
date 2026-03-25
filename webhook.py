@@ -10,7 +10,7 @@ application = app
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
-@app.route("", methods=["GET"])
+@app.route("/", methods=["GET"])
 def index():
     return "!", 200
 
