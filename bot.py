@@ -1,21 +1,13 @@
-import os
-from pathlib import Path
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 
-import telebot
-from dotenv import load_dotenv
-from telebot import custom_filters
-from telebot.storage import StateMemoryStorage
+from keys import BOT_TOKEN
+from handlers import register_handlers
 
-BASE_DIR = Path(__file__).resolve().parent
-ENV_FILE = BASE_DIR / ".env"
+bot = Bot(
+    token=BOT_TOKEN,
+    default=DefaultBotProperties(parse_mode="HTML"),
+)
 
-load_dotenv(dotenv_path=ENV_FILE)
-
-BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-
-if not BOT_TOKEN:
-    raise RuntimeError(f"BOT_TOKEN topilmadi yoki bo'sh: {ENV_FILE}")
-
-state_storage = StateMemoryStorage()
-bot = telebot.TeleBot(BOT_TOKEN, state_storage=state_storage, threaded=True)
-bot.add_custom_filter(custom_filters.StateFilter(bot))
+dp = Dispatcher()
+register_handlers(dp, bot)
