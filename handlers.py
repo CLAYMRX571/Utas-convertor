@@ -1,21 +1,16 @@
-import asyncio
+import time
 from pathlib import Path
 import pdfplumber
 import requests
-from aiogram import Bot, Dispatcher, F
-from aiogram.filters import CommandStart
-from aiogram.types import FSInputFile, Message
 from deep_translator import GoogleTranslator
 from docx import Document
+from telebot import types
 from keys import (
     ADMIN_PHONE,
     ADMIN_USERNAME,
     ILOVEPDF_PUBLIC_KEY,
     ILOVEPDF_SECRET_KEY,
     LANG_MAP,
-    confirm_menu,
-    main_menu,
-    translate_menu,
 )
 from states import (
     DOCX_DIR,
@@ -27,20 +22,52 @@ from states import (
     unique_path,
 )
 
-async def send_progress(message: Message, title: str):
-    msg = await message.answer(f"{title}\n0%")
+def build_main_menu():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Pdf 📁", "Word 📁")
+    markup.row("Text ✉️", "Tarjima 🌐")
+    markup.row("Adminga murojaat 👨‍💻")
+    return markup
+
+def build_confirm_menu():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("Ha ✅", "Yo'q ❌")
+    markup.row("Orqaga 🔙")
+    return markup
+
+def build_translate_menu():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    buttons = list(LANG_MAP.keys())
+    for i in range(0, len(buttons), 2):
+        markup.row(*buttons[i:i + 2])
+    markup.row("Orqaga 🔙")
+    return markup
+
+MAIN_MENU = build_main_menu()
+CONFIRM_MENU = build_confirm_menu()
+TRANSLATE_MENU = build_translate_menu()
+
+def send_progress(bot, chat_id: int, title: str):
+    msg = bot.send_message(chat_id, f"{title}\n0%")
     for percent in range(10, 101, 10):
-        await asyncio.sleep(0.15)
+        time.sleep(0.15)
         try:
-            await msg.edit_text(f"{title}\n{percent}%")
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg.message_id,
+                text=f"{title}\n{percent}%"
+            )
         except Exception:
             pass
     return msg
 
-async def download_telegram_file(bot: Bot, file_id: str, dest: Path) -> Path:
-    tg_file = await bot.get_file(file_id)
-    await bot.download(tg_file.file_path, destination=dest)
+
+def download_telegram_file(bot, file_id: str, dest: Path) -> Path:
+    tg_file = bot.get_file(file_id)
+    downloaded_file = bot.download_file(tg_file.file_path)
+    dest.write_bytes(downloaded_file)
     return dest
+
 
 def ilovepdf_auth() -> str:
     if not ILOVEPDF_PUBLIC_KEY or not ILOVEPDF_SECRET_KEY:
@@ -61,6 +88,7 @@ def ilovepdf_auth() -> str:
         raise RuntimeError(f"iLovePDF auth xatolik: {data}")
     return token
 
+
 def ilovepdf_start(tool: str, headers: dict) -> tuple[str, str]:
     response = requests.get(
         f"https://api.ilovepdf.com/v1/start/{tool}",
@@ -77,6 +105,7 @@ def ilovepdf_start(tool: str, headers: dict) -> tuple[str, str]:
         raise RuntimeError(f"iLovePDF start xatolik: {data}")
 
     return server, task
+
 
 def ilovepdf_upload(server: str, task: str, headers: dict, file_path: Path) -> str:
     with file_path.open("rb") as f:
@@ -96,6 +125,7 @@ def ilovepdf_upload(server: str, task: str, headers: dict, file_path: Path) -> s
 
     return server_filename
 
+
 def ilovepdf_download(server: str, task: str, headers: dict, output_path: Path) -> Path:
     response = requests.get(
         f"https://{server}/v1/download/{task}",
@@ -109,6 +139,7 @@ def ilovepdf_download(server: str, task: str, headers: dict, output_path: Path) 
         raise RuntimeError("Natija fayl bo'sh chiqdi")
 
     return output_path
+
 
 def pdf_to_word_convert(pdf_path: Path) -> Path:
     token = ilovepdf_auth()
@@ -136,6 +167,7 @@ def pdf_to_word_convert(pdf_path: Path) -> Path:
     output_path = unique_path(OUT_DIR, "docx")
     return ilovepdf_download(server, task, headers, output_path)
 
+
 def word_to_pdf_convert(docx_path: Path) -> Path:
     token = ilovepdf_auth()
     headers = {"Authorization": f"Bearer {token}"}
@@ -162,6 +194,7 @@ def word_to_pdf_convert(docx_path: Path) -> Path:
     output_path = unique_path(OUT_DIR, "pdf")
     return ilovepdf_download(server, task, headers, output_path)
 
+
 def extract_text_from_docx(docx_path: Path) -> str:
     doc = Document(str(docx_path))
     parts = []
@@ -171,6 +204,7 @@ def extract_text_from_docx(docx_path: Path) -> str:
             parts.append(txt)
     return "\n".join(parts).strip()
 
+
 def extract_text_from_pdf(pdf_path: Path) -> str:
     texts = []
     with pdfplumber.open(str(pdf_path)) as pdf:
@@ -179,6 +213,7 @@ def extract_text_from_pdf(pdf_path: Path) -> str:
             if txt and txt.strip():
                 texts.append(txt.strip())
     return "\n\n".join(texts).strip()
+
 
 def translate_big_text(text: str, target_lang: str) -> str:
     if not text.strip():
@@ -196,6 +231,7 @@ def translate_big_text(text: str, target_lang: str) -> str:
 
     return "\n".join(chunks).strip()
 
+
 def text_to_word_file(text: str) -> Path:
     output_path = unique_path(OUT_DIR, "docx")
     doc = Document()
@@ -204,13 +240,17 @@ def text_to_word_file(text: str) -> Path:
     doc.save(str(output_path))
     return output_path
 
-async def send_file_and_remove(message: Message, path: Path, caption: str):
+
+def send_file_and_remove(bot, chat_id: int, path: Path, caption: str):
     try:
-        await message.answer_document(
-            FSInputFile(path=str(path), filename=path.name),
-            caption=caption,
-            reply_markup=main_menu,
-        )
+        with open(path, "rb") as f:
+            bot.send_document(
+                chat_id,
+                f,
+                visible_file_name=path.name,
+                caption=caption,
+                reply_markup=MAIN_MENU,
+            )
     finally:
         try:
             if path.exists():
@@ -218,96 +258,98 @@ async def send_file_and_remove(message: Message, path: Path, caption: str):
         except Exception:
             pass
 
-def register_handlers(dp: Dispatcher, bot: Bot):
-    @dp.message(CommandStart())
-    async def start_handler(message: Message):
+
+def register_handlers(bot):
+    @bot.message_handler(commands=["start"])
+    def start_handler(message):
         clear_state(message.from_user.id)
         username = message.from_user.full_name if message.from_user else "Foydalanuvchi"
-        await message.answer(
+        bot.send_message(
+            message.chat.id,
             f"Assalomu alaykum, {username}\n\nKerakli bo'limni tanlang 👇",
-            reply_markup=main_menu,
+            reply_markup=MAIN_MENU,
         )
 
-    @dp.message(F.text == "Orqaga 🔙")
-    async def back_handler(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Orqaga 🔙")
+    def back_handler(message):
         clear_state(message.from_user.id)
-        await message.answer("Orqaga qaytdi 🔙", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Orqaga qaytdi 🔙", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Pdf 📁")
-    async def pdf_start(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Pdf 📁")
+    def pdf_start(message):
         clear_state(message.from_user.id)
         set_state(message.from_user.id, step="waiting_pdf")
-        await message.answer("PDF file tashlang 📁", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "PDF file tashlang 📁", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Word 📁")
-    async def word_start(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Word 📁")
+    def word_start(message):
         clear_state(message.from_user.id)
         set_state(message.from_user.id, step="waiting_word")
-        await message.answer("Word file tashlang (.docx) 📁", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Word file tashlang (.docx) 📁", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Text ✉️")
-    async def text_start(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Text ✉️")
+    def text_start(message):
         clear_state(message.from_user.id)
         set_state(message.from_user.id, step="waiting_text")
-        await message.answer("Matn yuboring ✍️", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Matn yuboring ✍️", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Tarjima 🌐")
-    async def translate_start(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Tarjima 🌐")
+    def translate_start(message):
         clear_state(message.from_user.id)
         set_state(message.from_user.id, step="waiting_translate_file")
-        await message.answer("Word yoki PDF formatida tashlang 📁", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Word yoki PDF formatida tashlang 📁", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Adminga murojaat 👨‍💻")
-    async def admin_contact(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Adminga murojaat 👨‍💻")
+    def admin_contact(message):
         text = (
             "👨‍💻 Admin bilan bog'lanish:\n\n"
             f"📩 Lichka: @{ADMIN_USERNAME}\n"
             f"📞 Telefon: {ADMIN_PHONE}"
         )
-        await message.answer(text, reply_markup=main_menu)
+        bot.send_message(message.chat.id, text, reply_markup=MAIN_MENU)
 
-    @dp.message(F.document)
-    async def document_handler(message: Message):
+    @bot.message_handler(content_types=["document"])
+    def document_handler(message):
         data = get_state(message.from_user.id)
         step = data.get("step")
         document = message.document
 
         if not document or not document.file_name:
-            await message.answer("Fayl topilmadi ❌", reply_markup=main_menu)
+            bot.send_message(message.chat.id, "Fayl topilmadi ❌", reply_markup=MAIN_MENU)
             return
 
         filename = document.file_name.lower()
 
         if step == "waiting_pdf":
             if not filename.endswith(".pdf"):
-                await message.answer("Faqat PDF file tashlang 📁")
+                bot.send_message(message.chat.id, "Faqat PDF file tashlang 📁")
                 return
 
             pdf_path = unique_path(PDF_DIR, "pdf")
-            await download_telegram_file(bot, document.file_id, pdf_path)
+            download_telegram_file(bot, document.file_id, pdf_path)
             set_state(
                 message.from_user.id,
                 step="confirm_pdf_to_word",
                 file_path=str(pdf_path),
                 file_type="pdf",
             )
-            await message.answer("Word ga o'girmoqchimisiz?", reply_markup=confirm_menu)
+            bot.send_message(message.chat.id, "Word ga o'girmoqchimisiz?", reply_markup=CONFIRM_MENU)
             return
 
         if step == "waiting_word":
             if not filename.endswith(".docx"):
-                await message.answer("Faqat .docx formatdagi Word file tashlang 📁")
+                bot.send_message(message.chat.id, "Faqat .docx formatdagi Word file tashlang 📁")
                 return
 
             docx_path = unique_path(DOCX_DIR, "docx")
-            await download_telegram_file(bot, document.file_id, docx_path)
+            download_telegram_file(bot, document.file_id, docx_path)
             set_state(
                 message.from_user.id,
                 step="confirm_word_to_pdf",
                 file_path=str(docx_path),
                 file_type="docx",
             )
-            await message.answer("PDF ga o'girmoqchimisiz?", reply_markup=confirm_menu)
+            bot.send_message(message.chat.id, "PDF ga o'girmoqchimisiz?", reply_markup=CONFIRM_MENU)
             return
 
         if step == "waiting_translate_file":
@@ -318,29 +360,29 @@ def register_handlers(dp: Dispatcher, bot: Bot):
                 file_path = unique_path(DOCX_DIR, "docx")
                 file_type = "docx"
             else:
-                await message.answer("Faqat PDF yoki DOCX file tashlang 📁")
+                bot.send_message(message.chat.id, "Faqat PDF yoki DOCX file tashlang 📁")
                 return
 
-            await download_telegram_file(bot, document.file_id, file_path)
+            download_telegram_file(bot, document.file_id, file_path)
             set_state(
                 message.from_user.id,
                 step="waiting_translate_lang",
                 file_path=str(file_path),
                 file_type=file_type,
             )
-            await message.answer("Tilni tanlang 👇", reply_markup=translate_menu)
+            bot.send_message(message.chat.id, "Tilni tanlang 👇", reply_markup=TRANSLATE_MENU)
             return
 
-        await message.answer("Avval kerakli menyuni tanlang 👇", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Avval kerakli menyuni tanlang 👇", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text == "Ha ✅")
-    async def confirm_yes(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Ha ✅")
+    def confirm_yes(message):
         data = get_state(message.from_user.id)
         step = data.get("step")
         file_path = data.get("file_path")
 
         if not file_path:
-            await message.answer("Jarayon topilmadi. Qaytadan boshlang.", reply_markup=main_menu)
+            bot.send_message(message.chat.id, "Jarayon topilmadi. Qaytadan boshlang.", reply_markup=MAIN_MENU)
             clear_state(message.from_user.id)
             return
 
@@ -349,25 +391,31 @@ def register_handlers(dp: Dispatcher, bot: Bot):
 
         try:
             if step == "confirm_pdf_to_word":
-                prog = await send_progress(message, "PDF Word ga o'girilmoqda 🔄")
+                prog = send_progress(bot, message.chat.id, "PDF Word ga o'girilmoqda 🔄")
                 out = pdf_to_word_convert(src)
-                await prog.edit_text("Tayyor ✅")
-                await send_file_and_remove(message, out, "Mana Word faylingiz 📁")
+                try:
+                    bot.edit_message_text("Tayyor ✅", message.chat.id, prog.message_id)
+                except Exception:
+                    pass
+                send_file_and_remove(bot, message.chat.id, out, "Mana Word faylingiz 📁")
                 clear_state(message.from_user.id)
                 return
 
             if step == "confirm_word_to_pdf":
-                prog = await send_progress(message, "Word PDF ga o'girilmoqda 🔄")
+                prog = send_progress(bot, message.chat.id, "Word PDF ga o'girilmoqda 🔄")
                 out = word_to_pdf_convert(src)
-                await prog.edit_text("Tayyor ✅")
-                await send_file_and_remove(message, out, "Mana PDF faylingiz 📁")
+                try:
+                    bot.edit_message_text("Tayyor ✅", message.chat.id, prog.message_id)
+                except Exception:
+                    pass
+                send_file_and_remove(bot, message.chat.id, out, "Mana PDF faylingiz 📁")
                 clear_state(message.from_user.id)
                 return
 
-            await message.answer("Tasdiqlash uchun jarayon yo'q.", reply_markup=main_menu)
+            bot.send_message(message.chat.id, "Tasdiqlash uchun jarayon yo'q.", reply_markup=MAIN_MENU)
 
         except Exception as e:
-            await message.answer(f"Xatolik yuz berdi: {e} ❌", reply_markup=main_menu)
+            bot.send_message(message.chat.id, f"Xatolik yuz berdi: {e} ❌", reply_markup=MAIN_MENU)
             clear_state(message.from_user.id)
         finally:
             try:
@@ -376,16 +424,16 @@ def register_handlers(dp: Dispatcher, bot: Bot):
             except Exception:
                 pass
 
-    @dp.message(F.text == "Yo'q ❌")
-    async def confirm_no(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Yo'q ❌")
+    def confirm_no(message):
         clear_state(message.from_user.id)
-        await message.answer("Orqaga qaytdi 🔙", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Orqaga qaytdi 🔙", reply_markup=MAIN_MENU)
 
-    @dp.message(F.text.in_(list(LANG_MAP.keys())))
-    async def translate_lang(message: Message):
+    @bot.message_handler(func=lambda m: m.text in list(LANG_MAP.keys()))
+    def translate_lang(message):
         data = get_state(message.from_user.id)
         if data.get("step") != "waiting_translate_lang":
-            await message.answer("Avval fayl yuboring 📁", reply_markup=main_menu)
+            bot.send_message(message.chat.id, "Avval fayl yuboring 📁", reply_markup=MAIN_MENU)
             return
 
         file_path = Path(data["file_path"])
@@ -393,7 +441,7 @@ def register_handlers(dp: Dispatcher, bot: Bot):
         lang_code = LANG_MAP[message.text]
 
         try:
-            prog = await send_progress(message, f"{lang_code} tiliga tarjima qilinmoqda 🔄")
+            prog = send_progress(bot, message.chat.id, f"{lang_code} tiliga tarjima qilinmoqda 🔄")
 
             if file_type == "pdf":
                 original_text = extract_text_from_pdf(file_path)
@@ -401,49 +449,59 @@ def register_handlers(dp: Dispatcher, bot: Bot):
                 original_text = extract_text_from_docx(file_path)
 
             if not original_text.strip():
-                await prog.edit_text("File ichidan text topilmadi ❌")
-                await message.answer("File ichida tarjima qilinadigan text yo'q ❌", reply_markup=main_menu)
+                try:
+                    bot.edit_message_text("File ichidan text topilmadi ❌", message.chat.id, prog.message_id)
+                except Exception:
+                    pass
+                bot.send_message(
+                    message.chat.id,
+                    "File ichida tarjima qilinadigan text yo'q ❌",
+                    reply_markup=MAIN_MENU,
+                )
                 clear_state(message.from_user.id)
                 return
 
             translated_text = translate_big_text(original_text, lang_code)
 
-            await prog.edit_text("Tayyor ✅")
+            try:
+                bot.edit_message_text("Tayyor ✅", message.chat.id, prog.message_id)
+            except Exception:
+                pass
 
             if not translated_text.strip():
-                await message.answer("Tarjima qilinmadi ❌", reply_markup=main_menu)
+                bot.send_message(message.chat.id, "Tarjima qilinmadi ❌", reply_markup=MAIN_MENU)
                 clear_state(message.from_user.id)
                 return
 
-            for i in range(0, len(translated_text), 4000):
-                part = translated_text[i:i + 4000]
-                if i + 4000 >= len(translated_text):
-                    await message.answer(part, reply_markup=main_menu)
+            parts = [translated_text[i:i + 4000] for i in range(0, len(translated_text), 4000)]
+            for index, part in enumerate(parts):
+                if index == len(parts) - 1:
+                    bot.send_message(message.chat.id, part, reply_markup=MAIN_MENU)
                 else:
-                    await message.answer(part)
+                    bot.send_message(message.chat.id, part)
 
         except Exception as e:
-            await message.answer(f"Xatolik yuz berdi: {e} ❌", reply_markup=main_menu)
+            bot.send_message(message.chat.id, f"Xatolik yuz berdi: {e} ❌", reply_markup=MAIN_MENU)
         finally:
             clear_state(message.from_user.id)
 
-    @dp.message(F.text)
-    async def text_handler(message: Message):
+    @bot.message_handler(content_types=["text"])
+    def text_handler(message):
         data = get_state(message.from_user.id)
 
         if data.get("step") == "waiting_text":
             text = (message.text or "").strip()
             if not text:
-                await message.answer("Matn bo'sh bo'lmasligi kerak")
+                bot.send_message(message.chat.id, "Matn bo'sh bo'lmasligi kerak")
                 return
 
             try:
                 out = text_to_word_file(text)
-                await send_file_and_remove(message, out, "Word faylingiz tayyor ✅")
+                send_file_and_remove(bot, message.chat.id, out, "Word faylingiz tayyor ✅")
             except Exception as e:
-                await message.answer(f"Xatolik yuz berdi: {e} ❌", reply_markup=main_menu)
+                bot.send_message(message.chat.id, f"Xatolik yuz berdi: {e} ❌", reply_markup=MAIN_MENU)
             finally:
                 clear_state(message.from_user.id)
             return
 
-        await message.answer("Kerakli tugmani tanlang 👇", reply_markup=main_menu)
+        bot.send_message(message.chat.id, "Kerakli tugmani tanlang 👇", reply_markup=MAIN_MENU)
