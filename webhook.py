@@ -11,8 +11,8 @@ from func import router
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN", "bot.sample.uz")
-WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/bot")
+WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")
+WEBHOOK_PATH = os.getenv("WEBHOOK_PATH")
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN topilmadi")
@@ -43,7 +43,6 @@ def webhook():
     except Exception as e:
         return f"Error: {e}", 500
 
-
 @app.route("/")
 def set_webhook():
     try:
@@ -52,7 +51,7 @@ def set_webhook():
             await bot.set_webhook(url=WEBHOOK_URL)
 
         asyncio.run(_set())
-        return f"Webhook o‘rnatildi: {WEBHOOK_URL}", 200
+        return f"Webhook o'rnatildi: {WEBHOOK_URL}", 200
 
     except Exception as e:
         return f"Xatolik: {e}", 500
