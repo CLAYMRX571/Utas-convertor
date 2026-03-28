@@ -1,17 +1,26 @@
-BOT_TOKEN = "..."
-WEBHOOK_HOST = "https://claymrx.uz"
-WEBHOOK_PATH = "/bot"
-WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-ADMIN_USERNAME = "..."
-ADMIN_PHONE = "..."
+menu = ReplyKeyboardMarkup(
+    keyboard=[
+        [ KeyboardButton(text="Pdf 📁"), KeyboardButton(text="Word 📁")],
+        [ KeyboardButton(text="Text ✉️"), KeyboardButton(text="Tarjima 🌐")],
+        [ KeyboardButton(text="Adminga murojaat 👨‍💻")]
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Tugmalardan birini tanlang 👇"
+)
 
-ILOVEPDF_PUBLIC_KEY = "..."
-ILOVEPDF_SECRET_KEY = "..."
+confirm = ReplyKeyboardMarkup(
+    keyboard=[
+        [ KeyboardButton(text="Ha ✅"), KeyboardButton(text="Yo'q ❌")],
+    ],
+    resize_keyboard=True
+)
 
-LANG_MAP = {
-    "English 🇬🇧": "en",
-    "Русский 🇷🇺": "ru",
-    "O'zbek 🇺🇿": "uz",
-    "Türkçe 🇹🇷": "tr",
-}
+lang = ReplyKeyboardMarkup(
+    keyboard=[
+        [ KeyboardButton(text="🇺🇿 O'zbek"), KeyboardButton(text="🇷🇺 Rus") ],
+        [ KeyboardButton(text="🇬🇧 English"), KeyboardButton(text="🇹🇷 Turk") ],
+    ],
+    resize_keyboard=True
+)

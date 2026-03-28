@@ -1,6 +1,12 @@
-Flask
-pyTelegramBotAPI
+aiogram
 pdfplumber
-requests
-deep-translator
+pdf2docx
 python-docx
+PyPDF2
+PyMuPDF
+rapidocr-onnxruntime
+pillow
+docx2pdf
+deep-translator
+reportlab
+python-dotenv

@@ -1,12 +1,20 @@
-import telebot
-from telebot import types
+import asyncio
+import os
+from aiogram import Bot, Dispatcher
+from dotenv import load_dotenv
+from func import router
 
-from keys import BOT_TOKEN
-from handlers import register_handlers
+load_dotenv()
 
-bot = telebot.TeleBot(
-    BOT_TOKEN,
-    parse_mode="HTML",
-)
+TOKEN = os.getenv("BOT_TOKEN")
 
-register_handlers(bot)
+async def main():
+    bot = Bot(token=TOKEN)
+    dp = Dispatcher()
+
+    dp.include_router(router)
+
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
