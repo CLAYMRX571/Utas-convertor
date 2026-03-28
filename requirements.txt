@@ -1,4 +1,5 @@
 aiogram
+flask
 pdfplumber
 pdf2docx
 python-docx
