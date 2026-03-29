@@ -1,10 +1,11 @@
-from aiogram.fsm.state import State, StatesGroup
+user_states = {}
+user_data = {}
 
-class ConvertState(StatesGroup):
-    waiting_pdf = State()
-    waiting_pdf_confirm = State()
-    waiting_docx = State()
-    waiting_docx_confirm = State()
-    waiting_text = State()
-    waiting_translate_file = State()
-    waiting_translate_lang = State()
+class State:
+    NONE = "none"
+    WAITING_PDF = "waiting_pdf"
+    WAITING_PDF_CONFIRM = "waiting_pdf_confirm"
+    WAITING_DOCX = "waiting_docx"
+    WAITING_TEXT = "waiting_text"
+    WAITING_TRANSLATE_FILE = "waiting_translate_file"
+    WAITING_TRANSLATE_LANG = "waiting_translate_lang"

@@ -1,26 +1,36 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-menu = ReplyKeyboardMarkup(
-    keyboard=[
-        [ KeyboardButton(text="Pdf 📁"), KeyboardButton(text="Word 📁")],
-        [ KeyboardButton(text="Text ✉️"), KeyboardButton(text="Tarjima 🌐")],
-        [ KeyboardButton(text="Adminga murojaat 👨‍💻")]
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Tugmalardan birini tanlang 👇"
-)
+def get_menu():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(
+        KeyboardButton("Pdf 📁"),
+        KeyboardButton("Word 📁")
+    )
+    markup.row(
+        KeyboardButton("Text ✉️"),
+        KeyboardButton("Tarjima 🌐")
+    )
+    markup.row(
+        KeyboardButton("Adminga murojaat 👨‍💻")
+    )
+    return markup
 
-confirm = ReplyKeyboardMarkup(
-    keyboard=[
-        [ KeyboardButton(text="Ha ✅"), KeyboardButton(text="Yo'q ❌")],
-    ],
-    resize_keyboard=True
-)
+def get_confirm():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(
+        KeyboardButton("Ha ✅"),
+        KeyboardButton("Yo'q ❌")
+    )
+    return markup
 
-lang = ReplyKeyboardMarkup(
-    keyboard=[
-        [ KeyboardButton(text="🇺🇿 O'zbek"), KeyboardButton(text="🇷🇺 Rus") ],
-        [ KeyboardButton(text="🇬🇧 English"), KeyboardButton(text="🇹🇷 Turk") ],
-    ],
-    resize_keyboard=True
-)
+def get_lang():
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(
+        KeyboardButton("🇺🇿 O'zbek"),
+        KeyboardButton("🇷🇺 Rus")
+    )
+    markup.row(
+        KeyboardButton("🇬🇧 English"),
+        KeyboardButton("🇹🇷 Turk")
+    )
+    return markup
