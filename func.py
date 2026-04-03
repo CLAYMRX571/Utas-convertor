@@ -6,9 +6,6 @@ import fitz
 import pdfplumber
 import telebot
 import requests
-import subprocess
-import shutil
-import cv2
 import pytesseract
 from PIL import Image
 from PyPDF2 import PdfReader

@@ -2,8 +2,8 @@ import os
 import telebot
 from flask import Flask, request
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8677895463:AAEuIBWBcstMFN3V_3AnHC5z0TAXWjBQIn4")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://claymrx.uz/bot")
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=True)
 
