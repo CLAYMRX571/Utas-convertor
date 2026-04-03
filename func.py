@@ -4,13 +4,13 @@ import re
 from pathlib import Path
 import fitz
 import pdfplumber
-import easyocr
 import telebot
 import requests
 import subprocess
 import shutil
 import cv2
 import pytesseract
+from PIL import Image
 from PyPDF2 import PdfReader
 from deep_translator import GoogleTranslator
 from docx import Document
@@ -202,35 +202,25 @@ def extract_text_with_pymupdf(pdf_path: str) -> str:
     return "\n\n".join(texts).strip()
 
 def extract_text_from_image(image_path):
-    texts = []
-    seen = set()
+    try:
+        img = Image.open(image_path)
 
-    readers = [
-        easyocr.Reader(['en', 'tr'], gpu=False, verbose=False),
-        easyocr.Reader(['ru', 'en'], gpu=False, verbose=False)
-    ]
+        # OCR uchun yengil tayyorlash
+        img = img.convert("L")
 
-    for reader in readers:
-        results = reader.readtext(image_path, detail=1)
+        text = pytesseract.image_to_string(
+            img,
+            lang="eng+rus+tur",
+            config="--oem 3 --psm 6"
+        )
 
-        for bbox, text, prob in results:
-            text = normalize_ocr_chars(text).strip()
-            text = re.sub(r'\s+', ' ', text)
+        text = normalize_ocr_chars(text).strip()
+        text = re.sub(r'\s+', ' ', text)
 
-            if not text:
-                continue
+        return text
 
-            if prob < 0.3:
-                continue
-
-            key = text.lower()
-            if key in seen:
-                continue
-
-            seen.add(key)
-            texts.append(text)
-
-    return "\n".join(texts)
+    except Exception:
+        return ""
 
 def extract_text_with_ocr(pdf_path: str) -> str:
     result_pages = []

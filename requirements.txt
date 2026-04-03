@@ -7,6 +7,5 @@ PyPDF2
 deep-translator
 Pillow
 requests
-easyocr
 PyMuPDF
 pytesseract
