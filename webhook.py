@@ -1,47 +1,36 @@
 import os
-from dotenv import load_dotenv
-from flask import Flask, request
 import telebot
-from telebot.types import Update
-from func import register_handlers
-
-load_dotenv()
+from flask import Flask, request
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_DOMAIN = os.getenv("WEBHOOK_DOMAIN")
-WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/bot")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi")
-
-if not WEBHOOK_DOMAIN:
-    raise ValueError("WEBHOOK_DOMAIN topilmadi")
-
-WEBHOOK_URL = f"https://{WEBHOOK_DOMAIN}{WEBHOOK_PATH}"
-
-bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
-register_handlers(bot)
+bot = telebot.TeleBot(BOT_TOKEN, threaded=True)
 
 app = Flask(__name__)
-application = app
+application = app 
 
+@app.route("/bot", methods=["POST"])
+def get_message():
+    json_str = request.stream.read().decode("utf-8")
 
-@app.route(WEBHOOK_PATH, methods=["POST"])
-def webhook():
-    try:
-        json_str = request.get_data().decode("utf-8")
-        update = Update.de_json(json_str)
+    if json_str:
+        update = telebot.types.Update.de_json(json_str)
         bot.process_new_updates([update])
-        return "OK", 200
-    except Exception as e:
-        return f"Error: {e}", 500
 
+    return "OK", 200
 
 @app.route("/", methods=["GET"])
 def set_webhook():
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=WEBHOOK_URL)
-        return f"Webhook o'rnatildi: {WEBHOOK_URL}", 200
-    except Exception as e:
-        return f"Xatolik: {e}", 500
+    bot.remove_webhook()
+    bot.set_webhook(url=WEBHOOK_URL)
+    return "Webhook installed", 200
+
+@app.route("/delete_webhook", methods=["GET"])
+def delete_webhook():
+    bot.remove_webhook()
+    return "Webhook deleted", 200
+
+@bot.message_handler(func=lambda message: True)
+def handle_all(message):
+    bot.reply_to(message, "Bot ishlayapti")

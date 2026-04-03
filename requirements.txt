@@ -5,5 +5,8 @@ pdfplumber
 python-docx
 PyPDF2
 deep-translator
-reportlab
-pillow
+Pillow
+requests
+easyocr
+PyMuPDF
+pytesseract

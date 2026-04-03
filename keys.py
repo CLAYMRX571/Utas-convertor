@@ -1,7 +1,7 @@
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 def get_menu():
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder="Tugmalardan birini tanlang 👇")
     markup.row(
         KeyboardButton("Pdf 📁"),
         KeyboardButton("Word 📁")
@@ -17,10 +17,7 @@ def get_menu():
 
 def get_confirm():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(
-        KeyboardButton("Ha ✅"),
-        KeyboardButton("Yo'q ❌")
-    )
+    markup.row("Ha ✅", "Yo'q ❌")
     return markup
 
 def get_lang():
