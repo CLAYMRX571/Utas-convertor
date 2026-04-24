@@ -4,6 +4,9 @@ python-dotenv
 pdfplumber
 python-docx
 PyPDF2
+pdf2docx
+paddleocr
+paddlepaddle
 deep-translator
 Pillow
 requests

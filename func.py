@@ -8,7 +8,9 @@ import telebot
 import requests
 import pytesseract
 from PIL import Image
-from PyPDF2 import PdfReader
+from pdf2docx import Converter
+from paddleocr import PaddleOCR
+from docx2pdf import convert
 from deep_translator import GoogleTranslator
 from docx import Document
 from docx.shared import Pt
@@ -24,6 +26,31 @@ DOCX_DIR = MEDIA_DIR / "docx"
 TRANSLATE_DIR = MEDIA_DIR / "translate"
 OUT_DIR = MEDIA_DIR / "out"
 TEMP_DIR = MEDIA_DIR / "temp"
+
+ocr = PaddleOCR(use_angle_cls=False, lang='en')
+
+def extract_text_paddle(image_path):
+    result = ocr.ocr(image_path, cls=True)
+
+    lines = []
+    for line in result:
+        for word in line:
+            lines.append(word[1][0])
+
+    return " ".join(lines)
+
+def extract_text_smart(pdf_path):
+    text = extract_text_with_pdfplumber(pdf_path)
+
+    if is_meaningful_text(text):
+        return text
+
+    text = extract_text_with_pymupdf(pdf_path)
+
+    if is_meaningful_text(text):
+        return text
+
+    return extract_text_with_ocr(pdf_path)
 
 for folder in [MEDIA_DIR, PDF_DIR, DOCX_DIR, TRANSLATE_DIR, OUT_DIR, TEMP_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
@@ -202,7 +229,6 @@ def extract_text_from_image(image_path):
     try:
         img = Image.open(image_path)
 
-        # OCR uchun yengil tayyorlash
         img = img.convert("L")
 
         text = pytesseract.image_to_string(
@@ -218,6 +244,11 @@ def extract_text_from_image(image_path):
 
     except Exception:
         return ""
+    
+def pdf_to_docx_advanced(pdf_path, docx_path):
+    cv = Converter(pdf_path)
+    cv.convert(docx_path, start=0, end=None, image=True, table=True)
+    cv.close()
 
 def extract_text_with_ocr(pdf_path: str) -> str:
     result_pages = []
@@ -227,7 +258,6 @@ def extract_text_with_ocr(pdf_path: str) -> str:
         for page_index in range(len(doc)):
             page = doc.load_page(page_index)
 
-            # OCR sifatini oshirish
             matrix = fitz.Matrix(2.5, 2.5)
             pix = page.get_pixmap(matrix=matrix, alpha=False)
 
@@ -244,21 +274,6 @@ def extract_text_with_ocr(pdf_path: str) -> str:
         doc.close()
 
     return "\n\n".join(result_pages).strip()
-
-def extract_text_from_pdf_full(pdf_path: str) -> str:
-    text = extract_text_with_pdfplumber(pdf_path)
-    if text and text.strip():
-        return normalize_ocr_chars(text).strip()
-
-    text = extract_text_with_pymupdf(pdf_path)
-    if text and text.strip():
-        return normalize_ocr_chars(text).strip()
-
-    text = extract_text_with_ocr(pdf_path)
-    if text and text.strip():
-        return normalize_ocr_chars(text).strip()
-
-    return ""
 
 def create_docx_from_text(text: str, output_docx: str):
     doc = Document()
@@ -400,6 +415,19 @@ def ilovepdf_download_file(token: str, server: str, task: str, output_pdf_path: 
 def translate_text(text, target_lang):
     return GoogleTranslator(source='auto', target=target_lang).translate(text)
 
+def translate_docx_preserve(docx_path, target_lang):
+    doc = Document(docx_path)
+
+    for para in doc.paragraphs:
+        if para.text.strip():
+            translated = GoogleTranslator(
+                source='auto', target=target_lang
+            ).translate(para.text)
+
+            para.text = translated
+
+    doc.save(docx_path)
+
 def smart_translate_full(text: str, target_lang: str) -> str:
     chunks = split_text_preserve_lines(text, max_length=3500)
     translated_chunks = []
@@ -518,95 +546,32 @@ def register_handlers(bot: telebot.TeleBot):
         pdf_path = data.get("pdf_path")
         pdf_name = data.get("pdf_name", "converted.pdf")
 
-        if not pdf_path or not os.path.exists(pdf_path):
-            clear_state(message.chat.id)
-            bot.send_message(
-                message.chat.id,
-                "PDF topilmadi. Qaytadan yuboring.",
-                reply_markup=get_menu()
-            )
-            return
-
         output_docx = str(make_file_path(OUT_DIR, ".docx"))
+
         progress_msg = bot.send_message(message.chat.id, "Jarayonda... 0%")
 
         try:
-            bot.edit_message_text(
-                "Jarayonda... 20%",
-                chat_id=message.chat.id,
-                message_id=progress_msg.message_id
-            )
+            bot.edit_message_text("Jarayonda... 30%", message.chat.id, progress_msg.message_id)
 
-            extracted_text = extract_text_from_pdf_full(pdf_path)
+            pdf_to_docx_advanced(pdf_path, output_docx)
 
-            if not extracted_text or not extracted_text.strip():
-                bot.edit_message_text(
-                    "Jarayonda... 100%",
-                    chat_id=message.chat.id,
-                    message_id=progress_msg.message_id
-                )
-                bot.send_message(
-                    message.chat.id,
-                    "PDF ichidan matn topilmadi. Word fayl yaratilmadi.",
-                    reply_markup=get_menu()
-                )
-                return
-
-            bot.edit_message_text(
-                "Jarayonda... 60%",
-                chat_id=message.chat.id,
-                message_id=progress_msg.message_id
-            )
-
-            create_docx_from_text(extracted_text, output_docx)
-
-            if not os.path.exists(output_docx):
-                raise Exception("Word fayl yaratilmadi.")
-
-            bot.edit_message_text(
-                "Jarayonda... 90%",
-                chat_id=message.chat.id,
-                message_id=progress_msg.message_id
-            )
+            bot.edit_message_text("Jarayonda... 90%", message.chat.id, progress_msg.message_id)
 
             with open(output_docx, "rb") as f:
                 safe_name = f"{Path(pdf_name).stem}.docx"
-                bot.send_document(
-                    message.chat.id,
-                    f,
-                    visible_file_name=safe_name
-                )
+                bot.send_document(message.chat.id, f, visible_file_name=safe_name)
 
-            bot.edit_message_text(
-                "Jarayonda... 100% ✅\nWord fayl yuborildi.",
-                chat_id=message.chat.id,
-                message_id=progress_msg.message_id
-            )
-
-            bot.send_message(
-                message.chat.id,
-                "Orqaga qaytdingiz 🔙",
-                reply_markup=get_menu()
-            )
+            bot.edit_message_text("100% ✅ Tayyor", message.chat.id, progress_msg.message_id)
 
         except Exception as e:
-            try:
-                bot.edit_message_text(
-                    "Jarayonda xatolik yuz berdi ❌",
-                    chat_id=message.chat.id,
-                    message_id=progress_msg.message_id
-                )
-            except:
-                pass
-
-            bot.send_message(message.chat.id, f"Xatolik yuz berdi: {e}")
+            bot.send_message(message.chat.id, f"Xatolik: {e}")
 
         finally:
             remove_file(pdf_path)
             remove_file(output_docx)
-            user_data.pop(message.chat.id, None)
             clear_state(message.chat.id)
 
+            bot.send_message(message.chat.id, "Orqaga qaytdingiz 🔙", reply_markup=get_menu())
 
     @bot.message_handler(func=lambda m: get_state(m.chat.id) == State.WAITING_PDF_CONFIRM and m.text == "Yo'q ❌")
     def pdf_confirm_no(message: Message):
@@ -686,7 +651,8 @@ def register_handlers(bot: telebot.TeleBot):
                 message_id=progress_msg.message_id
             )
 
-            output_pdf = convert_docx_to_pdf_ilovepdf(str(docx_path), str(OUT_DIR))
+            output_pdf = str(make_file_path(OUT_DIR, ".pdf"))
+            convert(docx_path, output_pdf)
 
             if not output_pdf or not os.path.exists(output_pdf):
                 raise Exception("PDF fayl yaratilmadi.")
@@ -830,13 +796,21 @@ def register_handlers(bot: telebot.TeleBot):
             except Exception as e:
                 bot.send_message(message.chat.id, f"Fayl yuklashda xatolik: {e}")
 
-    @bot.message_handler(func=lambda m: get_state(m.chat.id) == State.WAITING_TRANSLATE_LANG and m.text == "Orqaga 🔙")
-    def translate_back(message: Message):
+    @bot.message_handler(func=lambda m: m.text == "Orqaga 🔙")
+    def back(message: Message):
         data = user_data.get(message.chat.id, {})
-        remove_file(data.get("translate_file_path"))
-        clear_state(message.chat.id)
-        bot.send_message(message.chat.id, "Orqaga qaytdingiz 🔙", reply_markup=get_menu())
 
+        for key in ["pdf_path", "docx_path", "translate_file_path"]:
+            if key in data:
+                remove_file(data.get(key))
+
+        clear_state(message.chat.id)
+
+        bot.send_message(
+            message.chat.id,
+            "Orqaga qaytdingiz 🔙",
+            reply_markup=get_menu()
+        )
 
     @bot.message_handler(func=lambda m: get_state(m.chat.id) == State.WAITING_TRANSLATE_LANG)
     def translate_file_by_lang(message: Message):
@@ -859,67 +833,48 @@ def register_handlers(bot: telebot.TeleBot):
 
         if not file_path or not os.path.exists(file_path):
             clear_state(message.chat.id)
-            bot.send_message(
-                message.chat.id,
-                "Fayl topilmadi. Qaytadan yuboring.",
-                reply_markup=get_menu()
-            )
+            bot.send_message(message.chat.id, "Fayl topilmadi.", reply_markup=get_menu())
             return
 
         progress_msg = bot.send_message(message.chat.id, "Jarayonda... 0%")
         output_file = None
 
         try:
-            bot.edit_message_text(
-                "Jarayonda... 20%\nMatn ajratilmoqda...",
-                message.chat.id,
-                progress_msg.message_id
-            )
-
-            extracted_text = ""
+            bot.edit_message_text("Jarayonda... 30%\nMatn ajratilmoqda...", message.chat.id, progress_msg.message_id)
 
             if file_type == ".pdf":
-                extracted_text = extract_text_from_pdf_full(file_path)
-            elif file_type == ".docx":
+                temp_docx = str(make_file_path(TEMP_DIR, ".docx"))
+                pdf_to_docx_advanced(file_path, temp_docx)
+                extracted_text = extract_text_from_docx_file_full(temp_docx)
+
+            else:
                 extracted_text = extract_text_from_docx_file_full(file_path)
 
-            if not extracted_text or not extracted_text.strip():
-                bot.send_message(message.chat.id, "Fayldan matn ajratilmadi.")
+            if not extracted_text.strip():
+                bot.send_message(message.chat.id, "Matn topilmadi.")
                 return
 
-            bot.edit_message_text(
-                "Jarayonda... 60%\nTarjima qilinmoqda...",
-                message.chat.id,
-                progress_msg.message_id
-            )
+            bot.edit_message_text("Jarayonda... 70%\nTarjima qilinmoqda...", message.chat.id, progress_msg.message_id)
 
             translated_text = smart_translate_full(extracted_text, target_lang)
 
-            if not translated_text or not translated_text.strip():
-                bot.send_message(message.chat.id, "Tarjima natijasi bo‘sh chiqdi.")
+            if not translated_text.strip():
+                bot.send_message(message.chat.id, "Tarjima bo‘sh chiqdi.")
                 return
 
-            bot.edit_message_text(
-                "Jarayonda... 85%\nWord fayl tayyorlanmoqda...",
-                message.chat.id,
-                progress_msg.message_id
-            )
+            bot.edit_message_text("Jarayonda... 90%\nFayl tayyorlanmoqda...", message.chat.id, progress_msg.message_id)
 
             output_file = str(make_file_path(OUT_DIR, ".docx"))
             create_docx_from_text(translated_text, output_file)
-
-            bot.edit_message_text(
-                "Jarayonda... 100% ✅",
-                message.chat.id,
-                progress_msg.message_id
-            )
 
             with open(output_file, "rb") as f:
                 safe_name = f"translated_{Path(file_name).stem}.docx"
                 bot.send_document(message.chat.id, f, visible_file_name=safe_name)
 
+            bot.edit_message_text("100% ✅ Tayyor", message.chat.id, progress_msg.message_id)
+
         except Exception as e:
-            bot.send_message(message.chat.id, f"Xatolik yuz berdi: {e}")
+            bot.send_message(message.chat.id, f"Xatolik: {e}")
 
         finally:
             remove_file(file_path)
